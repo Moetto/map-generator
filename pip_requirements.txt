@@ -1,0 +1,7 @@
+noise
+pip
+scipy
+numpy
+pillow
+configargparse
+webcolors
