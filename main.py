@@ -49,7 +49,7 @@ class Map:
         self.size_x = size_x
         self.size_y = size_y
         self.grid = np.zeros((size_y, size_x), np.float32)
-        self.max_height = (sum([pair.effect for pair in filters])) * 2
+        self.theoretical_max_height = (sum([pair.effect for pair in filters])) * 2
         self.sea_level = sea_level
 
         random.seed(seed)
@@ -58,7 +58,7 @@ class Map:
         mountain_range = 1
         for x in range(size_x):
             for y in range(size_y):
-                height = self.max_height / 2
+                height = self.theoretical_max_height / 2
                 for pair in filters:
                     height += snoise2((x + offset) / pair.scale, (y + offset) / pair.scale, 1) * pair.effect
 
@@ -67,6 +67,7 @@ class Map:
                         snoise2((x + offset) / mountain_scale, (y + offset) / mountain_scale, 1) * mountain_range)
 
                 self.grid[y, x] = height
+        self.effective_sea_level = np.max(self.grid) * self.sea_level / 100
 
     @staticmethod
     def _calculate_gradient_value(value, start_value, end_value, start_rgb, end_rgb, channel):
@@ -75,7 +76,8 @@ class Map:
 
     def generate_mountain(self, area):
         """
-        Generate mountain to given area(bit mask of map)
+        Generate mountain to given area
+        :param area: bit mask of map area(s) to hold mountains
         """
         distance_map = np.zeros_like(self.grid)
         s = np.ones((3, 3))
@@ -88,13 +90,13 @@ class Map:
             distance_map[edge == 1] = distance
             area = new_area
             distance += 0.05
-
-        #Map.show_height_map(distance_map)
+        self.theoretical_max_height += np.max(distance_map)
         self.grid = self.grid + distance_map
 
     def get_continents(self):
         mask = np.zeros_like(self.grid)
-        mask[self.grid > self.sea_level] = 1
+        mask[self.grid > self.sea_level / 100 * np.max(self.grid)] = 1
+        Map.show_height_map(mask)
         return mask
 
     @staticmethod
@@ -111,27 +113,28 @@ class Map:
         sea_shore_rgb = hex_to_rgb(sea_shore)
         ground_shore_rgb = hex_to_rgb(ground_shore)
         ground_high_rgb = hex_to_rgb(ground_high)
-        r = np.zeros((self.size_y, self.size_x), dtype='uint8')
-        g = np.zeros((self.size_y, self.size_x), dtype='uint8')
-        b = np.zeros((self.size_y, self.size_x), dtype='uint8')
-        rgb = [r, g, b]
+        rgb = []
+
+        for i in range(3):
+            rgb.append(np.zeros(self.grid.shape, 'uint8'))
+
         for y in range(self.size_y):
             for x in range(self.size_x):
-                for i in range(3):
-                    val = self.grid[y][x]
-                    if val > self.sea_level:
-                        start_value = self.sea_level
-                        end_value = self.max_height + 1
-                        start_rgb = ground_shore_rgb
-                        end_rgb = ground_high_rgb
-                    else:
-                        start_value = 0
-                        end_value = self.sea_level
-                        start_rgb = sea_deep_rgb
-                        end_rgb = sea_shore_rgb
+                val = self.grid[y, x]
+                if val > self.effective_sea_level:
+                    start_value = self.effective_sea_level
+                    end_value = self.theoretical_max_height
+                    start_rgb = ground_shore_rgb
+                    end_rgb = ground_high_rgb
+                else:
+                    start_value = 0
+                    end_value = self.effective_sea_level
+                    start_rgb = sea_deep_rgb
+                    end_rgb = sea_shore_rgb
 
-                    rgb[i][y][x] = self._calculate_gradient_value(self.grid[y][x], start_value, end_value, start_rgb,
-                                                                  end_rgb, i)
+                for i in range(3):
+                    rgb[i][y, x] = self._calculate_gradient_value(val, start_value, end_value, start_rgb, end_rgb, i)
+
         image = Image.merge("RGB", (
             Image.fromarray(rgb[0], "L"),
             Image.fromarray(rgb[1], "L"),
@@ -144,7 +147,7 @@ def main():
     p.add('-c', '--config', required=False, is_config_file=True, help='Custom config file')
     p.add('-x', '--xSize', type=check_positive_integer)
     p.add('-y', '--ySize', type=check_positive_integer)
-    p.add('--sea_level', type=float, default=0.0)
+    p.add('--sea_level', type=int, default=75, help="Percentage of max height below which area is covered in water")
     p.add('--seed', type=int, default=random.randint(0, 10000))
     p.add('-f', '--filters', type=scale_pair)
     p.add('--sea_deep', type=check_hex)
@@ -156,8 +159,8 @@ def main():
     print(args.seed)
     map = Map(size_x=args.xSize, size_y=args.ySize, sea_level=args.sea_level, seed=args.seed, filters=args.filters)
     map.generate_mountain(map.get_continents())
-    # map.show_self(args.sea_deep, args.sea_shore, args.ground_shore, args.ground_high)
-    map.show_height_map(map.grid)
+    map.show_self(args.sea_deep, args.sea_shore, args.ground_shore, args.ground_high)
+    # map.show_height_map(map.grid)
 
 
 if __name__ == "__main__":
