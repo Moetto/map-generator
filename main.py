@@ -1,10 +1,11 @@
 from noise import snoise2
-import numpy
+import numpy as np
 import random
 from PIL import Image
 import configargparse
 import re
 from webcolors import hex_to_rgb
+from scipy.ndimage.morphology import binary_erosion
 
 
 def check_positive_integer(value):
@@ -44,47 +45,88 @@ class _ScaleEffectPair:
 
 
 class Map:
-    def __init__(self, size_x, size_y, filters, seed=10):
+    def __init__(self, size_x, size_y, filters, sea_level, seed=10):
         self.size_x = size_x
         self.size_y = size_y
-        self.grid = numpy.zeros((size_y, size_x), numpy.float32)
-        self.max_height = sum([pair.effect for pair in filters]) * 2
+        self.grid = np.zeros((size_y, size_x), np.float32)
+        self.max_height = (sum([pair.effect for pair in filters])) * 2
+        self.sea_level = sea_level
 
         random.seed(seed)
         offset = random.randint(0, 10000)
+        mountain_scale = 100
+        mountain_range = 1
         for x in range(size_x):
             for y in range(size_y):
                 height = self.max_height / 2
                 for pair in filters:
                     height += snoise2((x + offset) / pair.scale, (y + offset) / pair.scale, 1) * pair.effect
-                self.grid[y][x] = height
+
+                if height > sea_level:
+                    height += abs(
+                        snoise2((x + offset) / mountain_scale, (y + offset) / mountain_scale, 1) * mountain_range)
+
+                self.grid[y, x] = height
 
     @staticmethod
     def _calculate_gradient_value(value, start_value, end_value, start_rgb, end_rgb, channel):
         percentage = (value - start_value) / (end_value - start_value)
         return int(start_rgb[channel] * (1 - percentage) + end_rgb[channel] * percentage)
 
-    def show_self(self, sea_deep, sea_shore, ground_shore, ground_high, sea_level=0.5):
+    def generate_mountain(self, area):
+        """
+        Generate mountain to given area(bit mask of map)
+        """
+        distance_map = np.zeros_like(self.grid)
+        s = np.ones((3, 3))
+        distance = 0.05
+        while True:
+            new_area = binary_erosion(area, s)
+            edge = area - new_area
+            if not np.any(edge):
+                break
+            distance_map[edge == 1] = distance
+            area = new_area
+            distance += 0.05
+
+        #Map.show_height_map(distance_map)
+        self.grid = self.grid + distance_map
+
+    def get_continents(self):
+        mask = np.zeros_like(self.grid)
+        mask[self.grid > self.sea_level] = 1
+        return mask
+
+    @staticmethod
+    def show_height_map(grid):
+        max_height = np.max(grid)
+        height_map = np.copy(grid)
+        for pixel in np.nditer(height_map, op_flags=['readwrite']):
+            pixel[...] = 255 * pixel / max_height
+        image = Image.fromarray(height_map, "F")
+        image.show()
+
+    def show_self(self, sea_deep, sea_shore, ground_shore, ground_high):
         sea_deep_rgb = hex_to_rgb(sea_deep)
         sea_shore_rgb = hex_to_rgb(sea_shore)
         ground_shore_rgb = hex_to_rgb(ground_shore)
         ground_high_rgb = hex_to_rgb(ground_high)
-        r = numpy.zeros((self.size_y, self.size_x), dtype='uint8')
-        g = numpy.zeros((self.size_y, self.size_x), dtype='uint8')
-        b = numpy.zeros((self.size_y, self.size_x), dtype='uint8')
+        r = np.zeros((self.size_y, self.size_x), dtype='uint8')
+        g = np.zeros((self.size_y, self.size_x), dtype='uint8')
+        b = np.zeros((self.size_y, self.size_x), dtype='uint8')
         rgb = [r, g, b]
         for y in range(self.size_y):
             for x in range(self.size_x):
                 for i in range(3):
                     val = self.grid[y][x]
-                    if val > sea_level:
-                        start_value = sea_level
-                        end_value = self.max_height
+                    if val > self.sea_level:
+                        start_value = self.sea_level
+                        end_value = self.max_height + 1
                         start_rgb = ground_shore_rgb
                         end_rgb = ground_high_rgb
                     else:
                         start_value = 0
-                        end_value = sea_level
+                        end_value = self.sea_level
                         start_rgb = sea_deep_rgb
                         end_rgb = sea_shore_rgb
 
@@ -112,8 +154,10 @@ def main():
 
     args = p.parse_args()
     print(args.seed)
-    map = Map(size_x=args.xSize, size_y=args.ySize, seed=args.seed, filters=args.filters)
-    map.show_self(args.sea_deep, args.sea_shore, args.ground_shore, args.ground_high, args.sea_level)
+    map = Map(size_x=args.xSize, size_y=args.ySize, sea_level=args.sea_level, seed=args.seed, filters=args.filters)
+    map.generate_mountain(map.get_continents())
+    # map.show_self(args.sea_deep, args.sea_shore, args.ground_shore, args.ground_high)
+    map.show_height_map(map.grid)
 
 
 if __name__ == "__main__":
