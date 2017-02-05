@@ -1,13 +1,10 @@
-from noise import snoise2
-import numpy as np
 import random
-from PIL import Image, ImageTk
+from PIL import ImageTk
 import configargparse
 import re
-from webcolors import hex_to_rgb
-from scipy.ndimage.morphology import binary_erosion
 import tkinter as tk
 from tkinter import ttk
+from opencl import Map
 
 
 def check_positive_integer(value):
@@ -139,103 +136,10 @@ class UI(ttk.Frame):
         self.sea_level_display['text'] = int(float(value))
 
 
-class Map:
-    def __init__(self, size_x, size_y, filters, sea_level, seed=10):
-        self.size_x = size_x
-        self.size_y = size_y
-        self.grid = np.zeros((size_y, size_x), np.float32)
-        self.theoretical_max_height = (sum([pair.effect for pair in filters])) * 2
-        self.sea_level = sea_level
-        self.image = None
-
-        random.seed(seed)
-        offset = random.randint(0, 10000)
-        mountain_scale = 100
-        mountain_range = 1
-        for x in range(size_x):
-            for y in range(size_y):
-                height = self.theoretical_max_height / 2
-                for pair in filters:
-                    height += snoise2((x + offset) / pair.scale, (y + offset) / pair.scale, 1) * pair.effect
-
-                if height > sea_level:
-                    height += abs(snoise2((x + offset) / mountain_scale,
-                                          (y + offset) / mountain_scale, 1) * mountain_range)
-
-                self.grid[y, x] = height
-        self.effective_sea_level = np.max(self.grid) * self.sea_level / 100
-
-    @staticmethod
-    def _calculate_gradient_value(value, start_value, end_value, start_rgb, end_rgb, channel):
-        percentage = (value - start_value) / (end_value - start_value)
-        return int(start_rgb[channel] * (1 - percentage) + end_rgb[channel] * percentage)
-
-    def generate_mountain(self, area):
-        """
-        Generate mountain to given area
-        :param area: bit mask of map area(s) to hold mountains
-        """
-        distance_map = np.zeros_like(self.grid)
-        s = np.ones((3, 3))
-        distance = 0.05
-        while True:
-            new_area = binary_erosion(area, s)
-            edge = area - new_area
-            if not np.any(edge):
-                break
-            distance_map[edge == 1] = distance
-            area = new_area
-            distance += 0.05
-        self.theoretical_max_height += np.max(distance_map)
-        self.grid = self.grid + distance_map
-
-    def get_continents(self):
-        mask = np.zeros_like(self.grid)
-        mask[self.grid > self.sea_level / 100 * np.max(self.grid)] = 1
-        return mask
-
-    def generate_height_map_image(self):
-        max_height = np.max(self.grid)
-        height_map = np.copy(self.grid)
-        for pixel in np.nditer(height_map, op_flags=['readwrite']):
-            pixel[...] = 255 * pixel / max_height
-        self.image = Image.fromarray(height_map, "F")
-
-    def generate_map_image(self, sea_deep, sea_shore, ground_shore, ground_high):
-        sea_deep_rgb = hex_to_rgb(sea_deep)
-        sea_shore_rgb = hex_to_rgb(sea_shore)
-        ground_shore_rgb = hex_to_rgb(ground_shore)
-        ground_high_rgb = hex_to_rgb(ground_high)
-        rgb = []
-
-        for i in range(3):
-            rgb.append(np.zeros(self.grid.shape, 'uint8'))
-
-        for y in range(self.size_y):
-            for x in range(self.size_x):
-                val = self.grid[y, x]
-                if val > self.effective_sea_level:
-                    start_value = self.effective_sea_level
-                    end_value = self.theoretical_max_height
-                    start_rgb = ground_shore_rgb
-                    end_rgb = ground_high_rgb
-                else:
-                    start_value = 0
-                    end_value = self.effective_sea_level
-                    start_rgb = sea_deep_rgb
-                    end_rgb = sea_shore_rgb
-
-                for i in range(3):
-                    rgb[i][y, x] = self._calculate_gradient_value(val, start_value, end_value, start_rgb, end_rgb, i)
-
-        self.image = Image.merge("RGB", (
-            Image.fromarray(rgb[0], "L"),
-            Image.fromarray(rgb[1], "L"),
-            Image.fromarray(rgb[2], "L")))
 
 
 def main():
-    p = configargparse.ArgParser(default_config_files='map.conf')
+    p = configargparse.ArgParser(default_config_files=['map.conf'])
     p.add('-c', '--config', required=False, is_config_file=True, help='Custom config file')
     p.add('-x', '--xSize', type=check_positive_integer)
     p.add('-y', '--ySize', type=check_positive_integer)
