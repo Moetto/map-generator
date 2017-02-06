@@ -89,6 +89,10 @@ class Map:
             k = self.program.ColoredMap
             # k.set_scalar_arg_dtypes([None, None, np.int32, np.int32, np.int32, np.int32])
             e = k(self.queue, (self.size_y, self.size_x), None, input_buf, color_bufs[i],
+                  np.int32(i),
+                  np.float32(self.effective_sea_level),
+                  np.int32(np.array(self.hex_to_rgb4(sea_deep))),
+                  np.int32(np.array(self.hex_to_rgb4(sea_shore))),
                   np.int32(np.array(self.hex_to_rgb4(ground_shore))),
                   np.int32(np.array(self.hex_to_rgb4(ground_high))),
                   np.int32(self.size_x),
@@ -118,4 +122,4 @@ class Map:
         self.image = Image.merge("RGB", (
             Image.fromarray(r, "L"),
             Image.fromarray(g, "L"),
-            Image.fromarray(r, "L")))
+            Image.fromarray(b, "L")))

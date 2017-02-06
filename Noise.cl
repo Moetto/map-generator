@@ -323,16 +323,27 @@ float  map256(float v)
 }
 
 
-uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, value, min_value, max_value) {
+uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, value, channel, min_value, max_value) {
 	float percentage = (float)(value - min_value) / (float)(max_value - min_value);
-	//return (uchar)(percentage * 100);
-	return (uchar) start_rgb.s0 * (1 - percentage) + end_rgb.s0 * percentage;
+	if (channel == 0) {
+		return (uchar) start_rgb.s0 * (1 - percentage) + end_rgb.s0 * percentage;
+	}
+	if (channel == 1) {
+		return (uchar) start_rgb.s1 * (1 - percentage) + end_rgb.s1 * percentage;
+	}
+	if (channel == 2) {
+		return (uchar) start_rgb.s2 * (1 - percentage) + end_rgb.s2 * percentage;
+	}
 }
 
 
 kernel void ColoredMap(
 	__global	float*	inputImage,
 	__global	uchar* 	outputImage,
+				int 	channel,
+				float	sea_level,
+				int4	sea_start_rgb,
+				int4	sea_end_rgb,
 				int4	start_rgb,
 				int4	end_rgb,
 				int		width,
@@ -341,7 +352,13 @@ kernel void ColoredMap(
 	int y = get_global_id(0);
 
 	float value = inputImage[x + width * y];
-	outputImage[(x + y * width)] = calculate_gradient_value(start_rgb, end_rgb, value, 0, 255);
+	uchar color;
+	if(value <= sea_level){
+		color =  calculate_gradient_value(sea_start_rgb, sea_end_rgb, value, channel, 0, (int)sea_level);
+	} else {
+		color =  calculate_gradient_value(start_rgb, end_rgb, value, channel, (int)sea_level, 255);
+	}
+	outputImage[(x + y * width)] = color;
 }
 
 
