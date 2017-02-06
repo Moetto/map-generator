@@ -18,6 +18,9 @@ class Map:
         self.size_y = size_y
         self.map = np.zeros((size_y, size_x), np.float32)
         self.height_map = None
+        self.mean_height_map = None
+        self.gradients = None
+        self.gradient_image = None
         self.theoretical_max_height = 255  # (sum([pair.effect for pair in filters])) * 2
         self.sea_level = sea_level
         self.effective_sea_level = 0
@@ -73,6 +76,36 @@ class Map:
         l = [x for x in rgb]
         l.append(0)
         return l
+
+    def calculate_mean_height_map(self):
+        if self.height_map is None:
+            self.generate_height_map_image()
+        self.mean_height_map = np.empty_like(self.height_map)
+        input_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.height_map)
+        output_buf = cl.Buffer(self.ctx, cl.mem_flags.WRITE_ONLY, size=self.mean_height_map.nbytes)
+
+        event = self.program.calculate_mean(self.queue, self.map.shape, None, input_buf, output_buf, np.int32(10),
+                                            np.int32(self.size_x), np.int32(self.size_y))
+        cl.enqueue_copy(self.queue, self.mean_height_map, output_buf, wait_for=[event])
+
+    def calculate_gradient(self):
+        if self.height_map is None:
+            self.generate_height_map_image()
+        if self.mean_height_map is None:
+            self.calculate_mean_height_map()
+        self.gradients = np.gradient(self.mean_height_map)
+        y = self.gradients[0]
+        x = self.gradients[1]
+
+        x **= 2
+        y **= 2
+        total = x + y
+        gradient = total ** (1 / 2)
+        max_val = gradient.max()
+        multiply = 255 / max_val
+        gradient *= multiply
+
+        self.gradient_image = Image.fromarray(gradient, 'F')
 
     def generate_map_image(self, sea_deep, sea_shore, ground_shore, ground_high):
         self.generate_height_map_image()

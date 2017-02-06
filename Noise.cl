@@ -378,3 +378,28 @@ kernel void HeightMap(
 		outputImage[x + width * y] = prev_value + value;
 }
 
+
+__kernel void calculate_mean (
+    __global float* input,
+    __global float* output,
+    int window_size,
+    int width,
+    int height
+    ) {
+    int x = get_global_id(1);
+    int y = get_global_id(0);
+
+    float mean = 0;
+    int y_final;
+    int x_final;
+    for (int y1 = - window_size; y1 <= window_size ; y1++) {
+        for (int x1 = -window_size ; x1 <= window_size ; x1++) {
+        	y_final = min(max(0, y + y1), height);
+        	x_final = min(max(0, x + x1), width);
+            mean += input[y_final * width + x_final];
+        }
+    }
+
+    float val = (mean / ((2*window_size+1)*(2*window_size+1)));
+    output[y * width + x] = val;
+}

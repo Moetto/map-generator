@@ -58,6 +58,7 @@ class UI(ttk.Frame):
 
         ttk.Button(self.controls, text="Generate height map", command=self.generate_height_map).grid(column=0, row=5)
         ttk.Button(self.controls, text="Generate map", command=self.generate_map).grid(column=1, row=5)
+        ttk.Button(self.controls, text="Generate gradient map", command=self.show_gradient).grid(row=6, column=0)
 
     def start(self):
         self.parent.mainloop()
@@ -80,6 +81,13 @@ class UI(ttk.Frame):
         self.map = Map(self.x_value.get(), self.y_value.get(), sea_level=int(self.sea_level_value.get()),
                        seed=self.seed_value.get(),
                        filters=self.args.filters)
+
+    def show_gradient(self):
+        if self.map is None:
+            self._generate_map()
+        if self.map.gradient_image is None:
+            self.map.calculate_gradient()
+        self._show_image(self.map.gradient_image)
 
     def _show_image(self, image):
         photo = ImageTk.PhotoImage(image)
