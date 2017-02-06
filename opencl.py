@@ -105,24 +105,7 @@ class Map:
 
         for i in range(3):
             cl.enqueue_copy(self.queue, colors[i], color_bufs[i], wait_for=[events[i]])
-        """
-        for y in range(self.size_y):
-            for x in range(self.size_x):
-                val = self.height_map[y, x]
-                if val > self.effective_sea_level:
-                    start_value = self.effective_sea_level
-                    end_value = self.theoretical_max_height
-                    start_rgb = ground_shore_rgb
-                    end_rgb = ground_high_rgb
-                else:
-                    start_value = 0
-                    end_value = self.effective_sea_level
-                    start_rgb = sea_deep_rgb
-                    end_rgb = sea_shore_rgb
 
-                for i in range(3):
-                    rgb[i][y, x] = self._calculate_gradient_value(val, start_value, end_value, start_rgb, end_rgb, i)
-        """
         self.image = Image.merge("RGB", (
             Image.fromarray(r, "L"),
             Image.fromarray(g, "L"),
