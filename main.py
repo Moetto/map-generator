@@ -4,7 +4,7 @@ import configargparse
 import re
 import tkinter as tk
 from tkinter import ttk
-from opencl import Map
+from map import Map
 
 
 def check_positive_integer(value):
