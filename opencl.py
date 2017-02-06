@@ -1,15 +1,15 @@
-import random
-
 import numpy as np
 import pyopencl as cl
+import random
 
 from webcolors import hex_to_rgb
 from scipy.ndimage.morphology import binary_erosion
 from PIL import Image
+from random import Random
 
 
 class Map:
-    def __init__(self, size_x, size_y, filters, sea_level, seed=10):
+    def __init__(self, size_x, size_y, filters, sea_level, seed=random.randint(1, 100000)):
         self.ctx = cl.create_some_context(interactive=False)
         self.queue = cl.CommandQueue(self.ctx)
         self.program = cl.Program(self.ctx, open("Noise.cl").read()).build()
@@ -22,6 +22,7 @@ class Map:
         self.sea_level = sea_level
         self.effective_sea_level = 0
         self.image = None
+        self.random = Random(seed)
 
     @staticmethod
     def _calculate_gradient_value(value, start_value, end_value, start_rgb, end_rgb, channel):
@@ -60,7 +61,7 @@ class Map:
         for f in [(0.01, 0.6), (0.05, 0.3), (0.2, 0.1)]:
             events.append(self.program.HeightMap(self.queue, self.map.shape, None, destination_buf,
                                                  np.int32(self.size_x), np.int32(self.size_y),
-                                                 np.int32(random.randint(0, 1000000)),
+                                                 np.int32(self.random.randint(0, 1000000)),
                                                  np.float32(f[0]), np.float32(f[1]), wait_for=events))
         cl.enqueue_copy(self.queue, self.height_map, destination_buf, wait_for=events)
         self.effective_sea_level = np.max(self.height_map) * self.sea_level / 100
