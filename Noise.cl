@@ -367,12 +367,14 @@ kernel void HeightMap(
 				int		width,
 				int		height,
 				int		seed,
-				float	scale
+				float	scale,
+				float	magnitude
 	) {
 		int x = get_global_id(1);
 		int y = get_global_id(0);
 
-		float value = Noise_2d(128*(float)(x + seed) * 1/width * scale, 128 * (float)(y + seed) * 1/height * scale) * 127.5f + 127.5f;
-		outputImage[x + width * y] = value;
+		float prev_value = outputImage[x + width * y];
+		float value = Noise_2d(128*(float)(x + seed) * 1/width * scale, 128 * (float)(y + seed) * 1/height * scale) * magnitude * 127.5;
+		outputImage[x + width * y] = prev_value + value;
 }
 
