@@ -17,7 +17,7 @@ class Map:
         self.size_x = size_x
         self.size_y = size_y
         self.map = np.zeros((size_y, size_x), np.float32)
-        self.height_map = np.zeros(self.map.shape, np.float32)
+        self.height_map = None
         self.theoretical_max_height = 255  # (sum([pair.effect for pair in filters])) * 2
         self.sea_level = sea_level
         self.effective_sea_level = 0
@@ -53,10 +53,11 @@ class Map:
         return mask
 
     def generate_height_map_image(self):
+        self.height_map = np.empty(self.map.shape, np.float32)
         destination_buf = cl.Buffer(self.ctx, cl.mem_flags.HOST_READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
                                     hostbuf=np.full(self.map.size, 127.5, np.float32))
         events = []
-        for f in [(0.01, 0.2), (0.05, 0.3), (0.3, 0.4)]:
+        for f in [(0.01, 0.6), (0.05, 0.3), (0.2, 0.1)]:
             events.append(self.program.HeightMap(self.queue, self.map.shape, None, destination_buf,
                                                  np.int32(self.size_x), np.int32(self.size_y),
                                                  np.int32(random.randint(0, 1000000)),
@@ -66,8 +67,8 @@ class Map:
         self.image = Image.fromarray(self.height_map, "F")
 
     @classmethod
-    def hex_to_rgb4(cls, hex):
-        rgb = hex_to_rgb(hex)
+    def hex_to_rgb4(cls, hex_color):
+        rgb = hex_to_rgb(hex_color)
         l = [x for x in rgb]
         l.append(0)
         return l
