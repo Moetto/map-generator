@@ -12,7 +12,8 @@ class Map:
     def __init__(self, size_x, size_y, filters, sea_level, seed=random.randint(1, 100000)):
         self.ctx = cl.create_some_context(interactive=False)
         self.queue = cl.CommandQueue(self.ctx)
-        self.program = cl.Program(self.ctx, open("Noise.cl").read()).build()
+        self.noise = cl.Program(self.ctx, open("noise/Noise.cl").read()).build()
+        self.map_tools = cl.Program(self.ctx, open("maptools.cl").read()).build()
         self.queue = cl.CommandQueue(self.ctx)
         self.size_x = size_x
         self.size_y = size_y
@@ -62,10 +63,10 @@ class Map:
                                     hostbuf=np.full(self.map.size, 127.5, np.float32))
         events = []
         for f in [(0.01, 0.6), (0.05, 0.3), (0.2, 0.1)]:
-            events.append(self.program.HeightMap(self.queue, self.map.shape, None, destination_buf,
-                                                 np.int32(self.size_x), np.int32(self.size_y),
-                                                 np.int32(self.random.randint(0, 1000000)),
-                                                 np.float32(f[0]), np.float32(f[1]), wait_for=events))
+            events.append(self.noise.HeightMap(self.queue, self.map.shape, None, destination_buf,
+                                               np.int32(self.size_x), np.int32(self.size_y),
+                                               np.int32(self.random.randint(0, 1000000)),
+                                               np.float32(f[0]), np.float32(f[1]), wait_for=events))
         cl.enqueue_copy(self.queue, self.height_map, destination_buf, wait_for=events)
         self.effective_sea_level = np.max(self.height_map) * self.sea_level / 100
         self.image = Image.fromarray(self.height_map, "F")
@@ -84,8 +85,8 @@ class Map:
         input_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.height_map)
         output_buf = cl.Buffer(self.ctx, cl.mem_flags.WRITE_ONLY, size=self.mean_height_map.nbytes)
 
-        event = self.program.calculate_mean(self.queue, self.map.shape, None, input_buf, output_buf, np.int32(10),
-                                            np.int32(self.size_x), np.int32(self.size_y))
+        event = self.map_tools.calculate_mean(self.queue, self.map.shape, None, input_buf, output_buf, np.int32(10),
+                                          np.int32(self.size_x), np.int32(self.size_y))
         cl.enqueue_copy(self.queue, self.mean_height_map, output_buf, wait_for=[event])
 
     def calculate_gradient(self):
@@ -124,9 +125,7 @@ class Map:
 
         events = []
         for i in range(3):
-            k = self.program.ColoredMap
-            # k.set_scalar_arg_dtypes([None, None, np.int32, np.int32, np.int32, np.int32])
-            e = k(self.queue, (self.size_y, self.size_x), None, input_buf, color_bufs[i],
+            e = self.map_tools.ColoredMap(self.queue, (self.size_y, self.size_x), None, input_buf, color_bufs[i],
                   np.int32(i),
                   np.float32(self.effective_sea_level),
                   np.int32(np.array(self.hex_to_rgb4(sea_deep))),
