@@ -1,3 +1,12 @@
+#define NORTH 0
+#define EAST 2
+#define SOUTH 4
+#define WEST 6
+
+#define NORTH_EAST 1
+#define SOUTH_EAST 3
+#define SOUTH_WEST 5
+#define NORTH_WEST 7
 
 uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, value, channel, min_value, max_value) {
 	float percentage = (float)(value - min_value) / (float)(max_value - min_value);
@@ -61,4 +70,97 @@ __kernel void calculate_mean (
 
     float val = (mean / ((2*window_size+1)*(2*window_size+1)));
     output[y * width + x] = val;
+}
+
+
+__kernel void gradient_direction (
+	__global float* x_value,
+	__global float* y_value,
+	__global uchar* output,
+			 int	width
+			 ) {
+	int x = get_global_id(1);
+	int y = get_global_id(0);
+
+	int coord = x + y * width;
+
+	float x_val = x_value[coord];
+	float y_val = y_value[coord];
+
+	double angle = atan2(x_val, y_val);
+	char direction;
+
+	if (angle < (-M_PI * 7 / 8) || angle >= (M_PI * 7 / 8)) {
+		direction = NORTH;
+	} else if (angle >= (-M_PI * 7 / 8) && angle < (-M_PI * 5 / 8)) {
+		direction = NORTH_EAST;
+	} else if (angle >= (-M_PI * 5 / 8) && angle < (-M_PI * 3 / 8)) {
+		direction = EAST;
+	} else if (angle >= (-M_PI * 3 / 8) && angle < (-M_PI * 1 / 8)) {
+		direction = SOUTH_EAST;
+	} else if (angle >= (-M_PI * 1 / 8) && angle < (M_PI * 1 / 8)) {
+		direction = SOUTH;
+	} else if (angle >= (M_PI * 1 / 8) && angle < (M_PI * 3 / 8)) {
+		direction = SOUTH_WEST;
+	} else if (angle >= (M_PI * 3 / 8) && angle < (M_PI * 5 / 8)) {
+		direction = WEST;
+	} else if (angle >= (M_PI * 5 / 8) && angle < (M_PI * 7 / 8)) {
+		direction = NORTH_WEST;
+	}
+	output[coord] = direction;
+}
+
+
+__kernel void generate_rivers(
+	__global uchar* gradient_direction,
+	__global int* 	output,
+	__global int*	start_points_x_buf,
+	__global int*	start_points_y_buf,
+			 int	width,
+			 int	height
+			 ) {
+	int i = get_global_id(0);
+	int x = start_points_x_buf[i];
+	int y = start_points_y_buf[i];
+
+	int coord_index = x + y * width;
+
+  	uchar direction = gradient_direction[coord_index];
+  	int prev_val = 0;
+
+  	while (1) {
+		if (direction == NORTH) {
+			y++;
+		} else if (direction == NORTH_EAST) {
+			x++;
+			y++;
+		} else if (direction == EAST) {
+			x++;
+		} else if (direction == SOUTH_EAST) {
+			x++;
+			y--;
+		} else if (direction == SOUTH) {
+			y--;
+		} else if (direction == SOUTH_WEST) {
+			x--;
+			y--;
+		} else if (direction == WEST) {
+			x--;
+		} else if (direction == NORTH_WEST) {
+			x--;
+			y++;
+		}
+		if (x < 0 || x >= width || y < 0 || y >= height) {
+			return;
+		}
+		coord_index = x + y * width;
+		if(coord_index >= width * height) {
+			return;
+		}
+
+		if (atomic_inc(&output[coord_index]) > 10) {
+			return;
+		}
+		direction = gradient_direction[coord_index];
+  	}
 }

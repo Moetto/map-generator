@@ -22,16 +22,17 @@ class Map:
         self.mean_height_map = None
         self.gradients = None
         self.gradient_image = None
+        self.gradient_direction = None
+        self.rivers = None
+        self.rivers_image = None
         self.theoretical_max_height = 255  # (sum([pair.effect for pair in filters])) * 2
         self.sea_level = sea_level
         self.effective_sea_level = 0
         self.image = None
         self.random = Random(seed)
 
-    @staticmethod
-    def _calculate_gradient_value(value, start_value, end_value, start_rgb, end_rgb, channel):
-        percentage = (value - start_value) / (end_value - start_value)
-        return int(start_rgb[channel] * (1 - percentage) + end_rgb[channel] * percentage)
+    def _random_pixel(self):
+        return random.randint(0, self.size_y), random.randint(0, self.size_x)
 
     def generate_mountain(self, area):
         """
@@ -85,31 +86,56 @@ class Map:
         input_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.height_map)
         output_buf = cl.Buffer(self.ctx, cl.mem_flags.WRITE_ONLY, size=self.mean_height_map.nbytes)
 
-        event = self.map_tools.calculate_mean(self.queue, self.map.shape, None, input_buf, output_buf, np.int32(10),
-                                          np.int32(self.size_x), np.int32(self.size_y))
+        event = self.map_tools.calculate_mean(self.queue, self.map.shape, None, input_buf, output_buf, np.int32(30),
+                                              np.int32(self.size_x), np.int32(self.size_y))
         cl.enqueue_copy(self.queue, self.mean_height_map, output_buf, wait_for=[event])
 
     def calculate_gradient(self):
-        if self.height_map is None:
-            self.generate_height_map_image()
         if self.mean_height_map is None:
             self.calculate_mean_height_map()
         self.gradients = np.gradient(self.mean_height_map)
-        y = self.gradients[0]
-        x = self.gradients[1]
+        self.gradient_direction = np.empty(self.map.shape, np.uint8)
 
-        x **= 2
-        y **= 2
-        total = x + y
-        gradient = total ** (1 / 2)
-        max_val = gradient.max()
-        multiply = 255 / max_val
-        gradient *= multiply
+        y_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.gradients[0])
+        x_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.gradients[1])
+        output_buf = cl.Buffer(self.ctx, cl.mem_flags.WRITE_ONLY, size=self.map.nbytes)
 
-        self.gradient_image = Image.fromarray(gradient, 'F')
+        event = self.map_tools.gradient_direction(self.queue, self.gradient_direction.shape, None,
+                                                  x_buf,
+                                                  y_buf,
+                                                  output_buf,
+                                                  np.int32(self.size_x))
+        cl.enqueue_copy(self.queue, self.gradient_direction, output_buf, wait_for=[event])
+        self.gradient_image = Image.fromarray(self.gradient_direction * 35, 'P')
+
+    def generate_rivers(self):
+        if self.gradient_image is None:
+            self.calculate_gradient()
+        self.rivers = np.zeros(self.map.shape, np.int32)
+
+        start_points = [self._random_pixel() for i in range(100)]
+        x_points = [p[1] for p in start_points]
+        y_points = [p[0] for p in start_points]
+
+        gradient_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.gradient_direction)
+        river_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.rivers)
+        start_points_x_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=np.int32(x_points))
+        start_points_y_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=np.int32(y_points))
+
+        event = self.map_tools.generate_rivers(self.queue, (len(start_points),), None,
+                                               gradient_buf,
+                                               river_buf,
+                                               start_points_x_buf,
+                                               start_points_y_buf,
+                                               np.int32(self.size_x),
+                                               np.int32(self.size_y))
+        cl.enqueue_copy(self.queue, self.rivers, river_buf, wait_for=[event])
+        self.rivers *= 10;
+        self.rivers_image = Image.fromarray(self.rivers, 'I')
 
     def generate_map_image(self, sea_deep, sea_shore, ground_shore, ground_high):
         self.generate_height_map_image()
+        self.generate_rivers()
         r = np.empty((self.size_y, self.size_x), 'uint8')
         g = np.empty((self.size_y, self.size_x), 'uint8')
         b = np.empty((self.size_y, self.size_x), 'uint8')
@@ -126,18 +152,19 @@ class Map:
         events = []
         for i in range(3):
             e = self.map_tools.ColoredMap(self.queue, (self.size_y, self.size_x), None, input_buf, color_bufs[i],
-                  np.int32(i),
-                  np.float32(self.effective_sea_level),
-                  np.int32(np.array(self.hex_to_rgb4(sea_deep))),
-                  np.int32(np.array(self.hex_to_rgb4(sea_shore))),
-                  np.int32(np.array(self.hex_to_rgb4(ground_shore))),
-                  np.int32(np.array(self.hex_to_rgb4(ground_high))),
-                  np.int32(self.size_x),
-                  np.int32(self.size_y))
+                                          np.int32(i),
+                                          np.float32(self.effective_sea_level),
+                                          np.int32(np.array(self.hex_to_rgb4(sea_deep))),
+                                          np.int32(np.array(self.hex_to_rgb4(sea_shore))),
+                                          np.int32(np.array(self.hex_to_rgb4(ground_shore))),
+                                          np.int32(np.array(self.hex_to_rgb4(ground_high))),
+                                          np.int32(self.size_x),
+                                          np.int32(self.size_y))
             events.append(e)
 
         for i in range(3):
             cl.enqueue_copy(self.queue, colors[i], color_bufs[i], wait_for=[events[i]])
+        b[self.rivers > 0] = 255
 
         self.image = Image.merge("RGB", (
             Image.fromarray(r, "L"),
