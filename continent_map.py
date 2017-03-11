@@ -2,13 +2,14 @@ import numpy as np
 from PIL import Image
 
 from base_maps import Map
+from events import Invalidated, SeaLevel
 from height_map import HeightMap
-from obeserver import Observer
+from observables import Observable, Event
 
 
-class ContinentMap(Map, Observer):
-    def __init__(self, width, height, sea_level: int, height_map: HeightMap):
-        super().__init__(width, height)
+class ContinentMap(Map):
+    def __init__(self, controller: Observable, width, height, sea_level: int, height_map: HeightMap):
+        super().__init__(controller, width, height)
         self._height_map = height_map
         self._sea_level = sea_level
         self._height_map.subscribe(self)
@@ -16,16 +17,20 @@ class ContinentMap(Map, Observer):
 
     def set_sea_level(self, sea_level):
         self._sea_level = sea_level
-        self.invalidate()
+        self.notify(Invalidated())
 
     def generate(self):
         if self.valid:
             return
-        if not self._height_map.valid:
-            self._height_map.generate()
-        self.map = np.zeros_like(self._height_map.map)
-        effective_sea_level = self._height_map.map.max() * self._sea_level / 100
+        self._map = np.zeros_like(self._height_map.get_map())
+        effective_sea_level = self._height_map.get_map().max() * self._sea_level / 100
 
-        self.map[self._height_map.map > effective_sea_level] = 1
+        self._map[self._height_map.get_map() > effective_sea_level] = 1
         self.valid = True
-        self.image = Image.fromarray(self.map, "I")
+        self.image = Image.fromarray(self._map, "I")
+
+    def handle(self, observable, event: Event):
+        super().handle(observable, event)
+        if type(event) is SeaLevel:
+            self._sea_level = event.sea_level
+            self.notify(Invalidated())

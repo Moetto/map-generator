@@ -1,5 +1,9 @@
+class Event:
+    pass
+
+
 class Observer:
-    def notify(self, invalid):
+    def handle(self, observable, event: Event):
         pass
 
 
@@ -14,7 +18,8 @@ class Observable:
     def un_subscribe(self, observer: Observer):
         self.observers.remove(observer)
 
-    def invalidate(self):
+    def notify(self, event):
         self.valid = False
         for observer in self.observers:
-            observer.notify(self)
+            observer.handle(self, event)
+

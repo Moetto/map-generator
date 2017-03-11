@@ -1,15 +1,17 @@
 import pyopencl as cl
 from PIL import Image
 
-from obeserver import Observable
+from events import Invalidated
+from observables import Observable, Observer, Event
 
 
-class Map(Observable):
-    def __init__(self, width: int, height: int):
+class Map(Observable, Observer):
+    def __init__(self, controller: Observable, width: int, height: int):
         super().__init__()
+        controller.subscribe(self)
         self.width = width
         self.height = height
-        self.map = None
+        self._map = None
         self.image = None
         self.valid = False
 
@@ -21,12 +23,18 @@ class Map(Observable):
             self.generate()
         return self.image
 
-    def notify(self, invalid):
-        self.invalidate()
-        self.valid = False
+    def get_map(self):
+        if not self.valid:
+            self.generate()
+        return self._map
+
+    def handle(self, observable, event: Event):
+        if type(event) is Invalidated:
+            self.valid = False
+            self.notify(event)
 
 
 class CLMap(Map):
-    def __init__(self, width: int, height: int, context: cl.Context):
-        super().__init__(width, height)
+    def __init__(self, controller: Observable, width: int, height: int, context: cl.Context):
+        super().__init__(controller, width, height)
         self.ctx = context
