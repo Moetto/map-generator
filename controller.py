@@ -1,9 +1,7 @@
 import random
 
-import numpy as np
 import pyopencl as cl
 from PIL import Image
-from scipy.ndimage.morphology import binary_erosion
 
 from color_map import ColorMap, ColorRange
 from continent_map import ContinentMap
@@ -38,7 +36,6 @@ class Controller:
             MapTypes.GRADIENT_MAP: gradient_map,
         }
         self._seedable_maps = [height_map]
-        self.theoretical_max_height = 255  # (sum([pair.effect for pair in filters])) * 2
 
     def get_map_image(self, map_type: MapTypes) -> Image:
         return self._maps[map_type].get_image()
@@ -54,21 +51,3 @@ class Controller:
             self.sea_level = sea_level
             self._maps[MapTypes.CONTINENT_MAP].set_sea_level(sea_level)
 
-    def generate_mountain(self, area):
-        """
-        Generate mountain to given area
-        :param area: bit mask of map area(s) to hold mountains
-        """
-        distance_map = np.zeros_like(self.map)
-        s = np.ones((3, 3))
-        distance = 0.05
-        while True:
-            new_area = binary_erosion(area, s)
-            edge = area - new_area
-            if not np.any(edge):
-                break
-            distance_map[edge == 1] = distance
-            area = new_area
-            distance += 0.05
-        self.theoretical_max_height += np.max(distance_map)
-        self.map += distance_map

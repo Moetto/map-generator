@@ -59,14 +59,15 @@ class Gui(ttk.Frame):
         self.sea_level_display = tk.Label(self.controls, text=args.sea_level)
         self.sea_level_display.grid(column=0, row=4, sticky=(tk.E, tk.N))
 
-        ttk.Button(self.controls, text="Generate height map", command=self.show_height_map).grid(column=0, row=5)
-        ttk.Button(self.controls, text="Generate map", command=self.show_color_map).grid(column=1, row=5)
-        ttk.Button(self.controls, text="Generate continent map", command=self.show_continent_map).grid(column=1,
+        ttk.Button(self.controls, text="Show height map", command=self.show_height_map).grid(column=0, row=5)
+        ttk.Button(self.controls, text="Show map", command=self.show_color_map).grid(column=1, row=5)
+        ttk.Button(self.controls, text="Show continents", command=self.show_continent_map).grid(column=1,
                                                                                                        row=6)
-        ttk.Button(self.controls, text="Generate gradient map", command=self.show_gradient_map).grid(row=7, column=0)
-        ttk.Button(self.controls, text="Generate river map", command=self.show_rivers).grid(row=8, column=0)
+        ttk.Button(self.controls, text="Show gradient map", command=self.show_gradient_map).grid(row=7, column=0)
+        ttk.Button(self.controls, text="Show waterfall map", command=self.show_rivers).grid(row=8, column=0)
 
     def start(self):
+        self._show_map(MapTypes.COLOR_MAP)
         self.parent.mainloop()
 
     def _show_map(self, map_type):

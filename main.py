@@ -50,10 +50,6 @@ def main():
     p.add('--sea_level', type=int, default=75, help="Percentage of max height below which area is covered in water")
     p.add('--seed', default=random.randint(0, 10000))
     p.add('-f', '--filters', type=scale_pair)
-    p.add('--sea_deep', type=check_hex)
-    p.add('--sea_shore', type=check_hex)
-    p.add('--ground_shore', type=check_hex)
-    p.add('--ground_high', type=check_hex)
 
     args = p.parse_args()
 
