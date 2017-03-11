@@ -1,7 +1,9 @@
 import random
 import re
+
 import configargparse
-from ui import UI
+
+from ui import Gui
 
 
 def check_positive_integer(value):
@@ -55,7 +57,7 @@ def main():
 
     args = p.parse_args()
 
-    ui = UI(args)
+    ui = Gui(args)
     ui.start()
 
 

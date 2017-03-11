@@ -1,17 +1,20 @@
-import re
 import random
+import re
 import tkinter as tk
-from PIL import ImageTk
 from tkinter import ttk
-from map import Map
+
+from PIL import ImageTk
+
+from controller import Controller
+from maptypes import MapTypes
 
 
-class UI(ttk.Frame):
+class Gui(ttk.Frame):
     def __init__(self, args, parent=tk.Tk()):
         super().__init__(parent, padding="3 3 12 12")
         self.parent = parent
+        self.controller = Controller(args.xSize, args.ySize, [], args.sea_level, args.seed)
         self.parent.title("Random map generator")
-        self.map = None
         self.args = args
         self.controls = ttk.Frame(self)
         self.controls.grid(column=0, row=0, sticky=(tk.W, tk.N))
@@ -29,7 +32,7 @@ class UI(ttk.Frame):
         random_seed_label = tk.Label(self.controls, text="Random seed")
         random_seed_label.grid(column=0, row=1, sticky=(tk.W, tk.N))
         self.random_seed = tk.BooleanVar(value=False)
-        random_seed_button = tk.Checkbutton(self.controls, command=self.random_seed_action, variable=self.random_seed)
+        random_seed_button = tk.Checkbutton(self.controls, command=self._random_seed_action, variable=self.random_seed)
         random_seed_button.grid(column=1, row=1, sticky=(tk.W, tk.N))
 
         vno = parent.register(self._validate_number_only)
@@ -51,51 +54,45 @@ class UI(ttk.Frame):
         sea_label.grid(column=0, row=4, sticky=(tk.W, tk.N))
         self.sea_level_value = tk.DoubleVar(value=args.sea_level)
         sea_level_slider = ttk.Scale(self.controls, from_=0, to=100, variable=self.sea_level_value,
-                                     command=self.show_sea_level, orient="horizontal")
+                                     command=self._show_sea_level, orient="horizontal")
         sea_level_slider.grid(column=1, row=4)
         self.sea_level_display = tk.Label(self.controls, text=args.sea_level)
         self.sea_level_display.grid(column=0, row=4, sticky=(tk.E, tk.N))
 
-        ttk.Button(self.controls, text="Generate height map", command=self.generate_height_map).grid(column=0, row=5)
-        ttk.Button(self.controls, text="Generate map", command=self.generate_map).grid(column=1, row=5)
-        ttk.Button(self.controls, text="Generate gradient map", command=self.show_gradient).grid(row=6, column=0)
-        ttk.Button(self.controls, text="Generate river map", command=self.show_rivers).grid(row=7, column=0)
+        ttk.Button(self.controls, text="Generate height map", command=self.show_height_map).grid(column=0, row=5)
+        ttk.Button(self.controls, text="Generate map", command=self.show_color_map).grid(column=1, row=5)
+        ttk.Button(self.controls, text="Generate continent map", command=self.show_continent_map).grid(column=1,
+                                                                                                       row=6)
+        ttk.Button(self.controls, text="Generate gradient map", command=self.show_gradient_map).grid(row=7, column=0)
+        ttk.Button(self.controls, text="Generate river map", command=self.show_rivers).grid(row=8, column=0)
 
     def start(self):
         self.parent.mainloop()
 
-    def generate_map(self):
-        self._generate_map()
-        self.map.generate_map_image(self.args.sea_deep, self.args.sea_shore, self.args.ground_shore,
-                                    self.args.ground_high)
-        self._show_image(self.map.image)
+    def _show_map(self, map_type):
+        self._set_map_parameters()
+        self._show_image(self.controller.get_map_image(map_type))
 
-    def generate_height_map(self):
-        self._generate_map()
-        self.map.generate_height_map_image()
-        self._show_image(self.map.image)
+    def show_color_map(self):
+        self._show_map(MapTypes.COLOR_MAP)
 
-    def _generate_map(self):
+    def show_height_map(self):
+        self._show_map(MapTypes.HEIGHT_MAP)
+
+    def show_continent_map(self):
+        self._show_map(MapTypes.CONTINENT_MAP)
+
+    def _set_map_parameters(self):
         if self.random_seed.get():
             self.seed_value.set(random.randint(0, 10000))
+        self.controller.set_seed(self.seed_value.get())
+        self.controller.set_sea_level(self.sea_level_value.get())
 
-        self.map = Map(self.x_value.get(), self.y_value.get(), sea_level=int(self.sea_level_value.get()),
-                       seed=self.seed_value.get(),
-                       filters=self.args.filters)
-
-    def show_gradient(self):
-        if self.map is None:
-            self._generate_map()
-        if self.map.gradient_image is None:
-            self.map.calculate_gradient()
-        self._show_image(self.map.gradient_image)
+    def show_gradient_map(self):
+        self._show_map(MapTypes.GRADIENT_MAP)
 
     def show_rivers(self):
-        if self.map is None:
-            self._generate_map()
-        if self.map.rivers_image is None:
-            self.map.generate_rivers()
-        self._show_image(self.map.rivers_image)
+        self._show_map(MapTypes.RIVER_MAP)
 
     def _show_image(self, image):
         photo = ImageTk.PhotoImage(image)
@@ -103,7 +100,7 @@ class UI(ttk.Frame):
         map_label.image = photo
         map_label.grid(column=2, row=0)
 
-    def random_seed_action(self):
+    def _random_seed_action(self):
         if self.random_seed.get():
             self.entry_seed.configure(state='disabled')
         else:
@@ -116,5 +113,5 @@ class UI(ttk.Frame):
             return True
         return False
 
-    def show_sea_level(self, value):
+    def _show_sea_level(self, value):
         self.sea_level_display['text'] = int(float(value))

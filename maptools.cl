@@ -8,7 +8,7 @@
 #define SOUTH_WEST 5
 #define NORTH_WEST 7
 
-uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, value, channel, min_value, max_value) {
+uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, float value, uint channel, float min_value, float max_value) {
 	float percentage = (float)(value - min_value) / (float)(max_value - min_value);
 	if (channel == 0) {
 		return (uchar) start_rgb.s0 * (1 - percentage) + end_rgb.s0 * percentage;
@@ -23,27 +23,28 @@ uchar 	calculate_gradient_value(int4 start_rgb, int4 end_rgb, value, channel, mi
 
 
 kernel void ColoredMap(
-	__global	float*	inputImage,
-	__global	uchar* 	outputImage,
-				int 	channel,
-				float	sea_level,
-				int4	sea_start_rgb,
-				int4	sea_end_rgb,
+	__global	float*	heightMap,
+	__global	uchar* 	red,
+	__global	uchar* 	green,
+	__global	uchar* 	blue,
+				float	start,
+				float	end,
 				int4	start_rgb,
 				int4	end_rgb,
 				int		width,
 				int		height) {
 	int x = get_global_id(1);
 	int y = get_global_id(0);
+	uint coord = x + y * width;
 
-	float value = inputImage[x + width * y];
+	float value = heightMap[x + width * y];
 	uchar color;
-	if(value <= sea_level){
-		color =  calculate_gradient_value(sea_start_rgb, sea_end_rgb, value, channel, 0, (int)sea_level);
-	} else {
-		color =  calculate_gradient_value(start_rgb, end_rgb, value, channel, (int)sea_level, 255);
+	if(value > start && value <= end){
+		uchar r, g, b;
+		red[coord] = calculate_gradient_value(start_rgb, end_rgb, value, 0, start, end);
+		green[coord] = calculate_gradient_value(start_rgb, end_rgb, value, 1, start, end);
+		blue[coord] = calculate_gradient_value(start_rgb, end_rgb, value, 2, start, end);
 	}
-	outputImage[(x + y * width)] = color;
 }
 
 
@@ -114,14 +115,11 @@ __kernel void gradient_direction (
 __kernel void generate_rivers(
 	__global uchar* gradient_direction,
 	__global int* 	output,
-	__global int*	start_points_x_buf,
-	__global int*	start_points_y_buf,
 			 int	width,
 			 int	height
 			 ) {
-	int i = get_global_id(0);
-	int x = start_points_x_buf[i];
-	int y = start_points_y_buf[i];
+	int x = get_global_id(1);
+	int y = get_global_id(0);
 
 	int coord_index = x + y * width;
 
