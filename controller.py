@@ -21,7 +21,7 @@ class Controller:
         self.height = height
         self.seed = seed
         self.sea_level = sea_level
-        height_map = HeightMap(self.width, self.height, self.ctx, [], self.seed)
+        height_map = HeightMap(self.width, self.height, self.ctx, filters, self.seed)
         mean_height_map = MeanHeightMap(self.width, self.height, self.ctx, height_map)
         gradient_map = GradientMap(self.width, self.height, self.ctx, mean_height_map)
         continent_map = ContinentMap(self.width, self.height, self.sea_level, height_map)

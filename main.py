@@ -30,7 +30,7 @@ def scale_pair(value):
 
 class _ScaleEffectPair:
     def __init__(self, scale, effect):
-        self.scale = int(scale)
+        self.scale = float(scale)
         self.effect = float(effect)
 
     @staticmethod

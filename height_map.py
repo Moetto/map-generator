@@ -25,13 +25,12 @@ class HeightMap(CLMap):
         destination_buf = cl.Buffer(self.ctx, cl.mem_flags.HOST_READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
                                     hostbuf=np.full(self.map.size, 127.5, np.float32))
         events = []
-        for f in [(0.01, 0.6), (0.05, 0.3), (0.2, 0.1)]:
+        for f in self.filters:
             events.append(self.noise.HeightMap(queue, self.map.shape, None, destination_buf,
                                                np.int32(self.width), np.int32(self.height),
                                                np.int32(random.randint(0, 1000000)),
-                                               np.float32(f[0]), np.float32(f[1]), wait_for=events))
+                                               np.float32(f.scale), np.float32(f.effect), wait_for=events))
         cl.enqueue_copy(queue, self.map, destination_buf, wait_for=events)
-        # self.effective_sea_level = np.max(self.height_map) * self.sea_level / 100
         self.image = Image.fromarray(self.map, "F")
         self.valid = True
 

@@ -13,7 +13,7 @@ class Gui(ttk.Frame):
     def __init__(self, args, parent=tk.Tk()):
         super().__init__(parent, padding="3 3 12 12")
         self.parent = parent
-        self.controller = Controller(args.xSize, args.ySize, [], args.sea_level, args.seed)
+        self.controller = Controller(args.xSize, args.ySize, args.filters, args.sea_level, args.seed)
         self.parent.title("Random map generator")
         self.args = args
         self.controls = ttk.Frame(self)
