@@ -3,18 +3,17 @@ import pyopencl as cl
 
 
 class HeightMapFilter:
-    def __init__(self, ctx):
+    def __init__(self, ctx, program):
         self.ctx = ctx
-        self.program = cl.Program(self.ctx, open("island_filter.cl").read()).build()
+        self.program = program
 
-    def run_filter(self, height_map):
+    def run_filter(self, _map):
         queue = cl.CommandQueue(self.ctx)
-        destination_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR,
-                                    hostbuf=height_map)
-        events = [self.program.filter(queue, height_map.shape, None,
+        destination_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=_map)
+        events = [self.program.filter(queue, _map.shape, None,
                                       destination_buf,
-                                      np.int32(height_map.shape[1]),
-                                      np.int32(height_map.shape[0]),
+                                      np.int32(_map.shape[1]),
+                                      np.int32(_map.shape[0]),
                                       )]
-        cl.enqueue_copy(queue, height_map, destination_buf, wait_for=events)
-        return height_map
+        cl.enqueue_copy(queue, _map, destination_buf, wait_for=events)
+        return _map
