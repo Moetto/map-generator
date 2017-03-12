@@ -6,6 +6,7 @@ from PIL import Image
 
 from base_maps import CLMap
 from events import Invalidated, Seed
+from height_map_filter import HeightMapFilter
 from observables import Observable, Event
 
 
@@ -33,6 +34,8 @@ class HeightMap(CLMap):
                                                np.int32(random.randint(0, 1000000)),
                                                np.float32(f.scale), np.float32(f.effect), wait_for=events))
         cl.enqueue_copy(queue, self._map, destination_buf, wait_for=events)
+        self._map = HeightMapFilter(self.ctx).run_filter(self._map)
+
         self.image = Image.fromarray(self._map, "F")
         self.valid = True
 

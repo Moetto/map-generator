@@ -40,10 +40,6 @@ class ColorMap(CLMap):
     def generate(self):
         if self.valid:
             return
-        if not self.height_map.valid:
-            self.height_map.generate()
-        if not self.river_map.valid:
-            self.river_map.generate()
         queue = cl.CommandQueue(self.ctx)
 
         r = np.empty((self.height, self.width), 'uint8')
