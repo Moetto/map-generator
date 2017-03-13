@@ -34,8 +34,7 @@ class Controller(Observable):
             MapTypes.COLOR_MAP: ColorMap(self, self.width, self.height, self.ctx, height_map, river_map, sea_level,
                                          [ColorRange(0, 100, True, [30, 80, 160, 0], [91, 154, 255, 0]),
                                           ColorRange(0, 30, False, [255, 243, 114, 0], [76, 211, 27, 0]),
-                                          ColorRange(30, 80, False, [119, 255, 73, 0], [55, 122, 33, 0]),
-                                          ColorRange(80, 100, False, [255, 240, 220, 0], [255, 211, 240, 0])
+                                          ColorRange(30, 100, False, [76, 211, 27, 0], [55, 122, 33, 0]),
                                           ]),
             MapTypes.CONTINENT_MAP: continent_map,
             MapTypes.MEAN_HEIGHT_MAP: mean_height_map,

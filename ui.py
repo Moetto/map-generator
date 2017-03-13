@@ -5,17 +5,15 @@ from tkinter import ttk
 
 from PIL import ImageTk
 
-from controller import Controller
 from maptypes import MapTypes
 
 
 class Gui(ttk.Frame):
-    def __init__(self, args, parent=tk.Tk()):
+    def __init__(self, controller, parent=tk.Tk()):
         super().__init__(parent, padding="3 3 12 12")
+        self.controller = controller
         self.parent = parent
-        self.controller = Controller(args.xSize, args.ySize, args.filters, args.sea_level, args.seed)
         self.parent.title("Random map generator")
-        self.args = args
         self.controls = ttk.Frame(self)
         self.controls.grid(column=0, row=0, sticky=(tk.W, tk.N))
 
@@ -26,7 +24,7 @@ class Gui(ttk.Frame):
 
         seed_label = tk.Label(self.controls, text="Seed")
         seed_label.grid(column=0, row=0, sticky=(tk.W, tk.N))
-        self.seed_value = tk.StringVar(value=args.seed)
+        self.seed_value = tk.StringVar(value=controller.seed)
         self.entry_seed = ttk.Entry(self.controls, textvariable=self.seed_value)
         self.entry_seed.grid(column=1, row=0, sticky=(tk.W, tk.N))
         random_seed_label = tk.Label(self.controls, text="Random seed")
@@ -38,31 +36,30 @@ class Gui(ttk.Frame):
         vno = parent.register(self._validate_number_only)
         width_label = tk.Label(self.controls, text="Width")
         width_label.grid(column=0, row=2, sticky=(tk.W, tk.N))
-        self.x_value = tk.IntVar(value=args.xSize)
+        self.x_value = tk.IntVar(value=controller.width)
         entry_x = ttk.Entry(self.controls, textvariable=self.x_value, validate='all', validatecommand=(vno, '%P'),
                             width=7)
         entry_x.grid(column=1, row=2)
 
         height_label = tk.Label(self.controls, text="Height")
         height_label.grid(column=0, row=3, sticky=(tk.W, tk.N))
-        self.y_value = tk.IntVar(value=args.ySize)
+        self.y_value = tk.IntVar(value=controller.height)
         entry_y = ttk.Entry(self.controls, textvariable=self.y_value, validate='all', validatecommand=(vno, '%P'),
                             width=7)
         entry_y.grid(column=1, row=3)
 
         sea_label = tk.Label(self.controls, text="Sea level")
         sea_label.grid(column=0, row=4, sticky=(tk.W, tk.N))
-        self.sea_level_value = tk.DoubleVar(value=args.sea_level)
+        self.sea_level_value = tk.DoubleVar(value=controller.sea_level)
         sea_level_slider = ttk.Scale(self.controls, from_=0, to=100, variable=self.sea_level_value,
                                      command=self._show_sea_level, orient="horizontal")
         sea_level_slider.grid(column=1, row=4)
-        self.sea_level_display = tk.Label(self.controls, text=args.sea_level)
+        self.sea_level_display = tk.Label(self.controls, text=controller.sea_level)
         self.sea_level_display.grid(column=0, row=4, sticky=(tk.E, tk.N))
 
         ttk.Button(self.controls, text="Show height map", command=self.show_height_map).grid(column=0, row=5)
         ttk.Button(self.controls, text="Show map", command=self.show_color_map).grid(column=1, row=5)
-        ttk.Button(self.controls, text="Show continents", command=self.show_continent_map).grid(column=1,
-                                                                                                       row=6)
+        ttk.Button(self.controls, text="Show continents", command=self.show_continent_map).grid(column=1, row=6)
         ttk.Button(self.controls, text="Show gradient map", command=self.show_gradient_map).grid(row=7, column=0)
         ttk.Button(self.controls, text="Show waterfall map", command=self.show_rivers).grid(row=8, column=0)
 

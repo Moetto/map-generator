@@ -41,6 +41,9 @@ class _ScaleEffectPair:
     def __str__(self):
         return "{} / {}".format(self.scale, self.effect)
 
+    def __repr__(self):
+        return self.__str__()
+
 
 def main():
     p = configargparse.ArgParser(default_config_files=['map.conf'])
