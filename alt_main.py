@@ -32,11 +32,16 @@ class FilterParamType(ParamType):
 
 
 class ConfigSectionSchema:
+    @matches_section("maps")
+    class MapConfig(SectionSchema):
+        pass
+
     @matches_section("global")
     class GlobalMapConfig(SectionSchema):
-        width = Param(type=click.INT)
-        height = Param(type=click.INT)
+        width = Param(type=click.INT, default=1200)
+        height = Param(type=click.INT, default=1000)
         seed = Param(type=click.INT, default=random.Random().randint(0, 100000))
+        sea_level = Param(type=click.INT, default=75)
 
     @matches_section("height map")
     class HeightMapConfig(SectionSchema):
@@ -47,6 +52,7 @@ class ConfigSectionSchema:
 class ConfigFileProcessor(ConfigFileReader):
     config_files = ["map.cfg"]
     config_section_schemas = [
+        ConfigSectionSchema.MapConfig,
         ConfigSectionSchema.GlobalMapConfig,
         ConfigSectionSchema.HeightMapConfig
     ]
@@ -55,13 +61,10 @@ class ConfigFileProcessor(ConfigFileReader):
 CONTEXT_SETTINGS = dict(default_map=ConfigFileProcessor.read_config())
 
 
-@click.group()
-@click.option("--width", "-w", default=1200)
-@click.option("--height", "-h", default=1000)
-@click.option("--seed", "-s", default=random.Random().randint(0, 100000000))
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
-def cli(ctx, width, height, seed):
-    ctx.obj = Controller(width, height, [], 75)
+def cli(ctx):
+    ctx.obj = Controller(ctx.default_map)
 
 
 pass_controller = click.make_pass_decorator(Controller)
@@ -87,7 +90,8 @@ def add_options(options):
 
 @cli.command()
 @pass_controller
-def gui(controller):
+@click.pass_context
+def gui(ctx, controller):
     Gui(controller).start()
 
 
@@ -95,6 +99,7 @@ def gui(controller):
 @pass_controller
 @click.pass_context
 def generate(ctx, controller):
+    controller.setup(ctx.default_map)
     for key in ctx.default_map.keys():
         print("{}: {}".format(key, ctx.default_map[key]))
 

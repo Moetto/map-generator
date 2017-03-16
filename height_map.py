@@ -16,8 +16,6 @@ class HeightMap(CLMap):
         self.filters = filters
         self.seed = seed
         self.noise = cl.Program(self.ctx, open("noise/Noise.cl").read()).build()
-        self.valid = False
-        self.generate()
 
     def generate(self):
         if self.valid:

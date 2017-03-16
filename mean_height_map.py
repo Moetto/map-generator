@@ -11,11 +11,10 @@ class MeanHeightMap(CLMap):
         super().__init__(controller, width, height, ctx)
         self.height_map = height_map
         self.map_tools = cl.Program(self.ctx, open("maptools.cl").read()).build()
-        self.generate()
 
     def generate(self):
-        if not self.height_map.valid:
-            self.height_map.generate()
+        if self.valid:
+            return
         queue = cl.CommandQueue(self.ctx)
         self._map = np.zeros_like(self.height_map.get_map(), dtype=np.float32)
         input_buf = cl.Buffer(self.ctx, cl.mem_flags.COPY_HOST_PTR, hostbuf=self.height_map.get_map())
@@ -28,3 +27,4 @@ class MeanHeightMap(CLMap):
                                               np.int32(self.width),
                                               np.int32(self.height))
         cl.enqueue_copy(queue, self._map, output_buf, wait_for=[event])
+        self.valid = True

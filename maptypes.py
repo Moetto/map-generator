@@ -1,6 +1,4 @@
-from enum import Enum
-
-
+"""
 class AutoNumber(Enum):
     def __new__(cls):
         value = len(cls.__members__) + 1
@@ -8,11 +6,14 @@ class AutoNumber(Enum):
         obj._value_ = value
         return obj
 
+"""
+from enum import Enum
 
-class MapTypes(AutoNumber):
-    HEIGHT_MAP = ()
-    COLOR_MAP = ()
-    GRADIENT_MAP = ()
-    CONTINENT_MAP = ()
-    RIVER_MAP = ()
-    MEAN_HEIGHT_MAP = ()
+
+class MapTypes(Enum):
+    HEIGHT_MAP = "height map"
+    COLOR_MAP = "color map"
+    GRADIENT_MAP = "gradient map"
+    CONTINENT_MAP = "continent map"
+    RIVER_MAP = "river map"
+    MEAN_HEIGHT_MAP = "mean height map"

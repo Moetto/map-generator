@@ -12,7 +12,6 @@ class GradientMap(CLMap):
         super().__init__(controller, width, height, ctx)
         self.mean_height_map = mean_height_map
         self.map_tools = cl.Program(self.ctx, open("maptools.cl").read()).build()
-        self.generate()
 
     def generate(self):
         if self.valid:
@@ -34,3 +33,4 @@ class GradientMap(CLMap):
                                                   np.int32(self.width))
         cl.enqueue_copy(queue, self._map, output_buf, wait_for=[event])
         self.image = Image.fromarray(self._map * 35, 'P')
+        self.valid = True

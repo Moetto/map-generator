@@ -13,7 +13,6 @@ class ContinentMap(Map):
         self._height_map = height_map
         self._sea_level = sea_level
         self._height_map.subscribe(self)
-        self.generate()
 
     def set_sea_level(self, sea_level):
         self._sea_level = sea_level
@@ -26,8 +25,8 @@ class ContinentMap(Map):
         effective_sea_level = self._height_map.get_map().max() * self._sea_level / 100
 
         self._map[self._height_map.get_map() > effective_sea_level] = 1
-        self.valid = True
         self.image = Image.fromarray(self._map, "I")
+        self.valid = True
 
     def handle(self, observable, event: Event):
         super().handle(observable, event)

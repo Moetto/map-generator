@@ -33,6 +33,9 @@ class Map(Observable, Observer):
             self.valid = False
             self.notify(event)
 
+    def setup(self, config):
+        print("Setting up {} with config keys {}".format(self.__class__, config.keys()))
+
 
 class CLMap(Map):
     def __init__(self, controller: Observable, width: int, height: int, context: cl.Context):

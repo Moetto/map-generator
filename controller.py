@@ -15,13 +15,15 @@ from river_map import RiverMap
 
 
 class Controller(Observable):
-    def __init__(self, width, height, filters, sea_level, seed=random.randint(1, 100000)):
+    def __init__(self, config):
         super().__init__()
         self.ctx = cl.create_some_context(interactive=False)
-        self.width = width
-        self.height = height
-        self.seed = seed
-        self.sea_level = sea_level
+        self_config = config.pop("global")
+
+        self.width = self_config["width"]
+        self.height = self_config["height"]
+        self.seed = self_config["seed"]
+        self.sea_level = self_config["sea_level"]
         height_map = HeightMap(self, self.width, self.height, self.ctx, filters, self.seed)
         mean_height_map = MeanHeightMap(self, self.width, self.height, self.ctx, height_map)
         gradient_map = GradientMap(self, self.width, self.height, self.ctx, mean_height_map)
@@ -40,6 +42,14 @@ class Controller(Observable):
             MapTypes.MEAN_HEIGHT_MAP: mean_height_map,
             MapTypes.GRADIENT_MAP: gradient_map,
         }
+        self._setup(config)
+
+    def _setup(self, config):
+        for key in config.keys():
+            try:
+                self._maps.get(MapTypes(key)).setup(config[key])
+            except ValueError:
+                print("Unable to setup {}".format(key))
 
     def get_map_image(self, map_type: MapTypes) -> Image:
         return self._maps[map_type].get_image()

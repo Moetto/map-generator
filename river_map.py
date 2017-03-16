@@ -17,7 +17,6 @@ class RiverMap(CLMap):
         self.gradient_map.subscribe(self)
         self.continent_map = continent_map
         self.continent_map.subscribe(self)
-        self.generate()
 
     def generate(self):
         if self.valid:
@@ -37,3 +36,4 @@ class RiverMap(CLMap):
         self._map[self.continent_map.get_map() == 0] = 0
         self._map *= 10
         self.image = Image.fromarray(self._map, 'I')
+        self.valid = True
